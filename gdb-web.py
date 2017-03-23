@@ -35,7 +35,7 @@ class SocketHandler(websocket.WebSocketHandler):
 class TraceHandler(web.RequestHandler):
     def get(self, id):
         id = int(id)
-        data = json.dumps(self.analysis.traces[id])
+        data = json.dumps({"id": 1})
         self.write(data)
 
     def post(self):
@@ -48,15 +48,11 @@ class TraceCountHandler(web.RequestHandler):
         self.write(data)
 
 
-settings = {
-    "static_path": "static",
-    "template_path": "templates",
-    "debug": True
-}
+settings = {"static_path": "dist", "template_path": "templates", "debug": True}
 
-app = web.Application(
-    [(r'/', IndexHandler), (r'/ws', SocketHandler),
-     (r'/traces/(\d+)', TraceHandler), (r'/traces/count', TraceCountHandler)], **settings)
+app = web.Application([(r'/', IndexHandler), (r'/ws', SocketHandler),
+                       (r'/traces/(\d+)', TraceHandler),
+                       (r'/traces/count', TraceCountHandler)], **settings)
 
 app.listen(3000)
 

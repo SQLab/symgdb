@@ -87,3 +87,7 @@ ENV/
 
 # Rope project settings
 .ropeproject
+node_modules/
+dist/
+npm-debug.log
+yarn-error.log

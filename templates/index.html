@@ -9,22 +9,7 @@
 	</head>
 	<body>
 		<div id="app">
-				<nav class="navbar navbar-inverse bg-inverse">
-					<a class="navbar-brand">qisa</a>
-				</nav>
-				<div class="container-fluid">
-					<div class="row">
-						<traces name="traces" :items=items>
-						</traces>
-						<assembly :assembly="assembly">
-						</assembly>
-						<register :register="register">
-						</register>
-					</div>
-				</div>
-			</div>
-			<script src="{{ static_url("vue.js") }}"> </script>
-			<script src="{{ static_url("vue-resource.js") }}"> </script>
-		<script src="{{ static_url("app.js") }}"> </script>
+		</div>
+		<script src="{{ static_url("bundle.js") }}"> </script>
 	</body>
 </html>
