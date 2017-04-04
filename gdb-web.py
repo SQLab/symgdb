@@ -54,10 +54,38 @@ app = web.Application([(r'/', IndexHandler), (r'/ws', SocketHandler),
                        (r'/traces/(\d+)', TraceHandler),
                        (r'/traces/count', TraceCountHandler)], **settings)
 
+def memory_changed_handler (event):
+    gdb.write("event type: memory_changed")
+    gdb.write("exit code: %d" % (event.address))
+    gdb.write("exit code: %d" % (event.length))
+    gdb.flush()
+
 app.listen(3000)
 
 gdb.write("start web server\n")
 gdb.flush()
+#gdb.events.memory_changed.connect (memory_changed_handler)
+class ReadMemory(gdb.Command):
+    def __init__(self):
+        super(ReadMemory, self).__init__("readmemory", gdb.COMMAND_DATA)
+    def invoke(self,arg, from_tty):
+        args = arg.split()
+        address = int(args[0])
+        memory_view = gdb.selected_inferior().read_memory(address, 8)
+        print(bytes(memory_view))
+
+class Triton(gdb.Command):
+    def __init__(self):
+        super(Triton, self).__init__("triton", gdb.COMMAND_DATA)
+    def invoke(self,arg, from_tty):
+        args = arg.split()
+        print(args[0])
+        print(args[1])
+
+ReadMemory()
+Triton()
+"""
 if os.fork() == 0:
     prctl.set_pdeathsig(signal.SIGKILL)
     ioloop.IOLoop.instance().start()
+"""
