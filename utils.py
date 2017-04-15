@@ -28,6 +28,7 @@ from six import StringIO
 from six.moves import range
 from six.moves import input
 
+
 # http://wiki.python.org/moin/PythonDecoratorLibrary#Memoize
 # http://stackoverflow.com/questions/8856164/class-decorator-decorating-method-in-python
 class memoized(object):
@@ -36,21 +37,24 @@ class memoized(object):
     If called later with the same arguments, the cached value is returned
     (not reevaluated).
     """
+
     def __init__(self, func):
         self.func = func
-        self.instance = None # bind with instance class of decorated method
+        self.instance = None  # bind with instance class of decorated method
         self.cache = {}
         self.__doc__ = inspect.getdoc(self.func)
 
     def __call__(self, *args, **kwargs):
         try:
-            return self.cache[(self.func, self.instance, args) + tuple(kwargs.items())]
+            return self.cache[(self.func, self.instance, args) + tuple(
+                kwargs.items())]
         except KeyError:
             if self.instance is None:
                 value = self.func(*args, **kwargs)
             else:
                 value = self.func(self.instance, *args, **kwargs)
-            self.cache[(self.func, self.instance, args) + tuple(kwargs.items())] = value
+            self.cache[(self.func, self.instance, args) + tuple(kwargs.items(
+            ))] = value
             return value
         except TypeError:
             # uncachable -- for instance, passing a list as an argument.
@@ -79,6 +83,7 @@ class memoized(object):
             if cached[0] == self.func and cached[1] == self.instance:
                 del self.cache[cached]
 
+
 def reset_cache(module=None):
     """
     Reset memoized caches of an instance/module
@@ -98,11 +103,13 @@ def reset_cache(module=None):
 
     return True
 
+
 def tmpfile(pref="peda-", is_binary_file=False):
     """Create and return a temporary file with custom prefix"""
 
     mode = 'w+b' if is_binary_file else 'w+'
     return tempfile.NamedTemporaryFile(mode=mode, prefix=pref)
+
 
 def colorize(text, color=None, attrib=None):
     """
@@ -110,10 +117,25 @@ def colorize(text, color=None, attrib=None):
     ref: https://github.com/hellman/libcolors/blob/master/libcolors.py
     """
     # ansicolor definitions
-    COLORS = {"black": "30", "red": "31", "green": "32", "yellow": "33",
-                "blue": "34", "purple": "35", "cyan": "36", "white": "37"}
-    CATTRS = {"regular": "0", "bold": "1", "underline": "4", "strike": "9",
-                "light": "1", "dark": "2", "invert": "7"}
+    COLORS = {
+        "black": "30",
+        "red": "31",
+        "green": "32",
+        "yellow": "33",
+        "blue": "34",
+        "purple": "35",
+        "cyan": "36",
+        "white": "37"
+    }
+    CATTRS = {
+        "regular": "0",
+        "bold": "1",
+        "underline": "4",
+        "strike": "9",
+        "light": "1",
+        "dark": "2",
+        "invert": "7"
+    }
 
     CPRE = '\033['
     CSUF = '\033[0m'
@@ -131,21 +153,26 @@ def colorize(text, color=None, attrib=None):
         ccode += ";" + COLORS[color]
     return CPRE + ccode + "m" + text + CSUF
 
+
 def green(text, attrib=None):
     """Wrapper for colorize(text, 'green')"""
     return colorize(text, "green", attrib)
+
 
 def red(text, attrib=None):
     """Wrapper for colorize(text, 'red')"""
     return colorize(text, "red", attrib)
 
+
 def yellow(text, attrib=None):
     """Wrapper for colorize(text, 'yellow')"""
     return colorize(text, "yellow", attrib)
 
+
 def blue(text, attrib=None):
     """Wrapper for colorize(text, 'blue')"""
     return colorize(text, "blue", attrib)
+
 
 class message(object):
     """
@@ -161,11 +188,13 @@ class message(object):
         """Activate message's bufferization, can also be used as a decorater."""
 
         if f != None:
+
             @functools.wraps(f)
             def wrapper(*args, **kwargs):
                 self.bufferize()
                 f(*args, **kwargs)
                 self.flush()
+
             return wrapper
 
         # If we are still using stdio we need to change it.
@@ -175,7 +204,8 @@ class message(object):
 
     def flush(self):
         if not self.buffering:
-            raise ValueError("Tried to flush a message that is not bufferising.")
+            raise ValueError(
+                "Tried to flush a message that is not bufferising.")
         self.buffering -= 1
 
         # We only need to flush if this is the lowest recursion level.
@@ -197,19 +227,24 @@ class message(object):
             if teefd:
                 pprint.pprint(text, teefd)
 
+
 msg = message()
+
 
 def warning_msg(text):
     """Colorize warning message with prefix"""
     msg(colorize("Warning: " + str(text), "yellow"))
 
+
 def error_msg(text):
     """Colorize error message with prefix"""
     msg(colorize("Error: " + str(text), "red"))
 
+
 def debug_msg(text, prefix="Debug"):
     """Colorize debug message with prefix"""
     msg(colorize("%s: %s" % (prefix, str(text)), "cyan"))
+
 
 def trim(docstring):
     """
@@ -240,6 +275,7 @@ def trim(docstring):
     # Return a single string:
     return '\n'.join(trimmed)
 
+
 def pager(text, pagesize=None):
     """
     Paging output, mimic external command less/more
@@ -265,6 +301,7 @@ def pager(text, pagesize=None):
 
     return
 
+
 def execute_external_command(command, cmd_input=None):
     """
     Execute external command and capture its output
@@ -283,13 +320,16 @@ def execute_external_command(command, cmd_input=None):
 
     return decode_string_escape(result)
 
+
 def is_printable(text, printables=""):
     """
     Check if a string is printable
     """
     if six.PY3 and isinstance(text, six.string_types):
         text = six.b(text)
-    return set(text) - set(six.b(string.printable) + six.b(printables)) == set()
+    return set(text) - set(six.b(string.printable) + six.b(printables)) == set(
+    )
+
 
 def is_math_exp(str):
     """
@@ -299,6 +339,7 @@ def is_math_exp(str):
     opers = set("+-*/%^")
     exp = set(str.lower())
     return (exp & opers != set()) and (exp - charset == set())
+
 
 def normalize_argv(args, size=0):
     """
@@ -317,11 +358,13 @@ def normalize_argv(args, size=0):
         args += [None]
     return args
 
+
 def to_hexstr(str_):
     """
     Convert a binary string to hex escape format
     """
-    return "".join(["\\x%02x" % ord(i) for i in bytes_iterator(str_)])
+    return "".join(["%02x" % ord(i) for i in bytes_iterator(str_)])
+
 
 def to_hex(num):
     """
@@ -332,16 +375,18 @@ def to_hex(num):
     else:
         return "0x%x" % num
 
+
 def to_address(num):
     """
     Convert a number to address format in hex
     """
     if num < 0:
         return to_hex(num)
-    if num > 0xffffffff: # 64 bit
+    if num > 0xffffffff:  # 64 bit
         return "0x%016x" % num
     else:
         return "0x%08x" % num
+
 
 def to_int(val):
     """
@@ -352,12 +397,14 @@ def to_int(val):
     except:
         return None
 
+
 def str2hex(str):
     """
     Convert a string to hex encoded format
     """
     result = codecs.encode(str, 'hex')
     return result
+
 
 def hex2str(hexnum, intsize=4):
     """
@@ -371,6 +418,7 @@ def hex2str(hexnum, intsize=4):
         s = "0" + s
     result = codecs.decode(s, 'hex')[::-1]
     return result
+
 
 def int2hexstr(num, intsize=4):
     """
@@ -388,6 +436,7 @@ def int2hexstr(num, intsize=4):
             result = struct.pack("<L", num)
     return result
 
+
 def list2hexstr(intlist, intsize=4):
     """
     Convert a list of number/string to hexified string
@@ -400,6 +449,7 @@ def list2hexstr(intlist, intsize=4):
             result += int2hexstr(value, intsize)
     return result
 
+
 def str2intlist(data, intsize=4):
     """
     Convert a string to list of int
@@ -407,14 +457,16 @@ def str2intlist(data, intsize=4):
     result = []
     data = decode_string_escape(data)[::-1]
     l = len(data)
-    data = ("\x00" * (intsize - l%intsize) + data) if l%intsize != 0 else data
+    data = ("\x00" *
+            (intsize - l % intsize) + data) if l % intsize != 0 else data
     for i in range(0, l, intsize):
         if intsize == 8:
-            val = struct.unpack(">Q", data[i:i+intsize])[0]
+            val = struct.unpack(">Q", data[i:i + intsize])[0]
         else:
-            val = struct.unpack(">L", data[i:i+intsize])[0]
+            val = struct.unpack(">L", data[i:i + intsize])[0]
         result = [val] + result
     return result
+
 
 @memoized
 def check_badchars(data, chars=None):
@@ -438,6 +490,7 @@ def check_badchars(data, chars=None):
                 return True
     return False
 
+
 @memoized
 def format_address(addr, type):
     """Colorize an address"""
@@ -448,6 +501,7 @@ def format_address(addr, type):
         "value": None
     }
     return colorize(addr, colorcodes[type])
+
 
 @memoized
 def format_reference_chain(chain):
@@ -462,7 +516,8 @@ def format_reference_chain(chain):
         first = True
         for (v, t, vn) in chain:
             if t != "value":
-                text += "%s%s " % ("--> " if not first else "", format_address(v, t))
+                text += "%s%s " % ("--> "
+                                   if not first else "", format_address(v, t))
             else:
                 text += "%s%s " % ("--> " if not first else "", v)
             first = False
@@ -476,12 +531,15 @@ def format_reference_chain(chain):
                     text += "(%s)" % string_repr(s.split(b"\x00")[0])
     return text
 
+
 # vulnerable C functions, source: rats/flawfinder
 VULN_FUNCTIONS = [
-    "exec", "system", "gets", "popen", "getenv", "strcpy", "strncpy", "strcat", "strncat",
-    "memcpy", "bcopy", "printf", "sprintf", "snprintf", "scanf",  "getchar", "getc", "read",
-    "recv", "tmp", "temp"
+    "exec", "system", "gets", "popen", "getenv", "strcpy", "strncpy", "strcat",
+    "strncat", "memcpy", "bcopy", "printf", "sprintf", "snprintf", "scanf",
+    "getchar", "getc", "read", "recv", "tmp", "temp"
 ]
+
+
 @memoized
 def format_disasm_code(code, nearby=None):
     """
@@ -501,7 +559,7 @@ def format_disasm_code(code, nearby=None):
         "cmp": "red",
         "test": "red",
         "call": "green",
-        "j": "yellow", # jump
+        "j": "yellow",  # jump
         "ret": "blue",
     }
     result = ""
@@ -515,12 +573,12 @@ def format_disasm_code(code, nearby=None):
         target = 0
 
     for line in code.splitlines():
-        if ":" not in line: # not an assembly line
+        if ":" not in line:  # not an assembly line
             result += line + "\n"
         else:
             color = style = None
             m = re.search(".*(0x[^ ]*).*:\s*([^ ]*)", line)
-            if not m: # failed to parse
+            if not m:  # failed to parse
                 result += line + "\n"
                 continue
             addr, opcode = to_int(m.group(1)), m.group(2)
@@ -558,6 +616,7 @@ def format_disasm_code(code, nearby=None):
 
     return result.rstrip()
 
+
 def cyclic_pattern_charset(charset_type=None):
     """
     Generate charset for cyclic pattern
@@ -573,30 +632,32 @@ def cyclic_pattern_charset(charset_type=None):
     """
 
     charset = []
-    charset += ["ABCDEFGHIJKLMNOPQRSTUVWXYZ"] # string.uppercase
-    charset += ["abcdefghijklmnopqrstuvwxyz"] # string.lowercase
-    charset += ["0123456789"] # string.digits
+    charset += ["ABCDEFGHIJKLMNOPQRSTUVWXYZ"]  # string.uppercase
+    charset += ["abcdefghijklmnopqrstuvwxyz"]  # string.lowercase
+    charset += ["0123456789"]  # string.digits
 
     if not charset_type:
         charset_type = config.Option.get("pattern")
 
-    if charset_type == 1: # extended type
+    if charset_type == 1:  # extended type
         charset[1] = "%$-;" + re.sub("[sn]", "", charset[1])
         charset[2] = "sn()" + charset[2]
 
-    if charset_type == 2: # maximum type
-        charset += ['!"#$%&\()*+,-./:;<=>?@[]^_{|}~'] # string.punctuation
+    if charset_type == 2:  # maximum type
+        charset += ['!"#$%&\()*+,-./:;<=>?@[]^_{|}~']  # string.punctuation
 
     mixed_charset = mixed = ''
     k = 0
     while True:
-        for i in range(0, len(charset)): mixed += charset[i][k:k+1]
+        for i in range(0, len(charset)):
+            mixed += charset[i][k:k + 1]
         if not mixed: break
         mixed_charset += mixed
         mixed = ''
-        k+=1
+        k += 1
 
     return mixed_charset
+
 
 def de_bruijn(charset, n, maxlen):
     """
@@ -607,6 +668,7 @@ def de_bruijn(charset, n, maxlen):
     k = len(charset)
     a = [0] * k * n
     sequence = []
+
     def db(t, p):
         if len(sequence) == maxlen:
             return
@@ -623,8 +685,10 @@ def de_bruijn(charset, n, maxlen):
             for j in range(a[t - p] + 1, k):
                 a[t] = j
                 db(t + 1, t)
-    db(1,1)
+
+    db(1, 1)
     return ''.join(sequence)
+
 
 @memoized
 def cyclic_pattern(size=None, start=None, charset_type=None):
@@ -659,6 +723,7 @@ def cyclic_pattern(size=None, start=None, charset_type=None):
 
     return pattern[start:size].encode('utf-8')
 
+
 @memoized
 def cyclic_pattern_offset(value):
     """
@@ -679,6 +744,7 @@ def cyclic_pattern_offset(value):
     pos = pattern.find(search)
     return pos if pos != -1 else None
 
+
 def cyclic_pattern_search(buf):
     """
     Search all cyclic pattern pieces in a buffer
@@ -692,7 +758,8 @@ def cyclic_pattern_search(buf):
     result = []
     pattern = cyclic_pattern()
 
-    p = re.compile(b"[" + re.escape(to_binary_string(cyclic_pattern_charset())) + b"]{4,}")
+    p = re.compile(b"[" + re.escape(
+        to_binary_string(cyclic_pattern_charset())) + b"]{4,}")
     found = p.finditer(buf)
     found = list(found)
     for m in found:
@@ -704,7 +771,7 @@ def cyclic_pattern_search(buf):
             k += 1
             i = pattern.find(s)
         if i != -1:
-            result += [(m.start()+k, len(s), i)]
+            result += [(m.start() + k, len(s), i)]
 
     return result
 
