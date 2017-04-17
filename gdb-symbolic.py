@@ -12,6 +12,20 @@ class SYMBOLIC(object):
     def __init__(self):
         self.regs = {}
 
+    def getfile(self):
+        out = gdb.execute("info files", to_string=True)
+        if out and '"' in out:
+            p = re.compile(".*exec file:\s*`(.*)'")
+            m = p.search(out)
+            if m:
+                result = m.group(1)
+            else:  # stripped file, get symbol file
+                p = re.compile("Symbols from \"([^\"]*)")
+                m = p.search(out)
+                if m:
+                    result = m.group(1)
+        return result
+
     def setregs(self):
         print(self.regs)
         for reg, reg_val in self.regs.iteritems():
@@ -20,15 +34,14 @@ class SYMBOLIC(object):
                 Register(getattr(REG, reg.upper()), reg_val))
 
     def getregs(self):
-        output = gdb.execute("info registers", to_string=True)
-        for reg in output.splitlines():
-            reg = reg.split()
-            self.regs[reg[0]] = to_int(reg[1])
+        out = gdb.execute("info registers", to_string=True)
+        for line in out.splitlines():
+            reg, reg_val = line.split()[0:2]
+            self.regs[reg] = to_int(reg_val)
 
     def getreg(self, reg):
-        output = gdb.execute("info registers %s" % reg, to_string=True)
-        result = to_int(output.splitlines()[0].split()[1])
-        return result
+        self.getregs()
+        return self.regs[reg]
 
     def geteflag(self, eflag):
         EFLAGS = {}
@@ -127,17 +140,24 @@ class Symbolic(gdb.Command):
         else:
             length = int(args[1])
         setArchitecture(ARCH.X86)
-        enableSymbolicEngine(True)
+        #enableSymbolicEngine(True)
 
         # Define symbolic optimizations
         enableMode(MODE.ALIGNED_MEMORY, True)
         enableMode(MODE.ONLY_ON_SYMBOLIZED, True)
 
         # Load the binary
-        loadBinary('./examples/crackme_hash')
+        loadBinary(symbolic.getfile())
         vmmap = symbolic.getvmmap()
         print(vmmap)
+        """
+        for stack in vmmap[0:3]:
+            print(hex(stack[0]), hex(stack[1]))
+            loadStack(stack[0], stack[1])
+        """
+
         stack = vmmap[-1]
+        print(hex(stack[0]), hex(stack[1]))
         loadStack(stack[0], stack[1])
 
         symbolic.getregs()
@@ -151,9 +171,7 @@ class Symbolic(gdb.Command):
                 MemoryAccess(address + index, CPUSIZE.BYTE))
 
         # Emulate from the verification function
-        #mem_val = getConcreteMemoryValue(MemoryAccess(0x0804a01c,8))
-        #mem_val = getConcreteMemoryValue(MemoryAccess(0x08048570,8))
-        #print(hex(int(mem_val)))
+        print(symbolic.getfile())
         raw_input("Press any key to start emulate")
         emulate(0x8048490)
         return
@@ -202,7 +220,7 @@ def emulate(pc):
                 print('[+] Symbolic variable %02d = %02x (%c)' %
                       (k, value, chr(value)))
             tend = time.time()
-            print("It cost %f sec" % (tend -tstart))
+            print("It cost %f sec" % (tend - tstart))
 
         if instruction.getAddress() == 0x080484BC:
             tstart = time.time()
@@ -215,7 +233,7 @@ def emulate(pc):
             # Define constraint
             cstr = ast.assert_(
                 ast.land(getPathConstraintsAst(),
-                         ast.equal(eip, ast.bv(0x080484be, 32))))
+                         ast.equal(eip, ast.bv(0x080484BE, 32))))
 
             print('[+] Asking for a model, please wait...')
             model = getModel(cstr)
@@ -225,9 +243,7 @@ def emulate(pc):
                 print('[+] Symbolic variable %02d = %02x (%c)' %
                       (k, value, chr(value)))
             tend = time.time()
-            print("It cost %f sec" % (tend -tstart))
-
-
+            print("It cost %f sec" % (tend - tstart))
 
         # Next
         pc = getConcreteRegisterValue(REG.EIP)
@@ -247,6 +263,7 @@ def loadStack(start, end):
 def loadBinary(path):
     binary = Elf(path)
     raw = binary.getRaw()
+
     phdrs = binary.getProgramHeaders()
     for phdr in phdrs:
         offset = phdr.getOffset()
@@ -254,8 +271,8 @@ def loadBinary(path):
         vaddr = phdr.getVaddr()
         print('[+] Loading 0x%06x - 0x%06x' % (vaddr, vaddr + size))
         setConcreteMemoryAreaValue(vaddr, raw[offset:offset + size])
-    phdrs = binary.getSectionHeaders()
 
+    phdrs = binary.getSectionHeaders()
     for phdr in phdrs:
         offset = phdr.getOffset()
         size = phdr.getSize()
