@@ -2,6 +2,7 @@
 
 # Installation
 ```
-echo "source ~/gdb-web/gdb-web.py" >> ~/.gdbinit
+./install.sh
+echo "source ~/gdb-symbolic/gdb-symbolic.py" >> ~/.gdbinit
 ```
 

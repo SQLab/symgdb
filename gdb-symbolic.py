@@ -2,6 +2,7 @@ from triton import *
 import os
 import sys
 import struct
+import time
 sys.path.append(os.getcwd())
 from utils import *
 EFLAGS = ['cf', 'pf', 'af', 'zf', 'sf', 'tf', 'if', 'df', 'of']
@@ -120,11 +121,17 @@ class Symbolic(gdb.Command):
             address = int(args[0], 16)
         else:
             address = int(args[0])
+        str = args[1]
+        if str.startswith('0x'):
+            length = int(args[1], 16)
+        else:
+            length = int(args[1])
         setArchitecture(ARCH.X86)
+        enableSymbolicEngine(True)
 
         # Define symbolic optimizations
-        #enableMode(MODE.ALIGNED_MEMORY, True)
-        #enableMode(MODE.ONLY_ON_SYMBOLIZED, True)
+        enableMode(MODE.ALIGNED_MEMORY, True)
+        enableMode(MODE.ONLY_ON_SYMBOLIZED, True)
 
         # Load the binary
         loadBinary('./examples/crackme_hash')
@@ -132,38 +139,22 @@ class Symbolic(gdb.Command):
         print(vmmap)
         stack = vmmap[-1]
         loadStack(stack[0], stack[1])
-        """
-		setConcreteRegisterValue(Register(REG.EAX, 0xf7fb3dbc))
-		setConcreteRegisterValue(Register(REG.ECX, 0xffffcd20))
-		setConcreteRegisterValue(Register(REG.EDX, 0xffffcd44))
-		setConcreteRegisterValue(Register(REG.ESP, 0xffffcd04))
-		setConcreteRegisterValue(Register(REG.EBP, 0xffffcd08))
-		setConcreteMemoryValue(MemoryAccess(0xffffcd20,4,2))
-		"""
 
         symbolic.getregs()
         symbolic.setregs()
 
-        print(hex(getConcreteMemoryValue(0x0804a01c)))
-        print(hex(getConcreteMemoryValue(0x0804a01d)))
-        print(hex(getConcreteMemoryValue(0x0804a01e)))
-        print(hex(getConcreteMemoryValue(0x0804a01f)))
-
-        print(hex(getConcreteMemoryValue(0x08048570)))
-        print(hex(getConcreteMemoryValue(0x08048571)))
-        print(hex(getConcreteMemoryValue(0x08048572)))
-        print(hex(getConcreteMemoryValue(0x08048573)))
-        print(hex(getConcreteMemoryValue(0x08048574)))
-        #print(hex(getConcreteRegisterValue(REG.EAX)))
         #addCallback(needConcreteMemoryValue, CALLBACK.GET_CONCRETE_MEMORY_VALUE)
         #addCallback(needConcreteRegisterValue, CALLBACK.GET_CONCRETE_REGISTER_VALUE)
 
-        for index in range(5):
+        for index in range(length):
             convertMemoryToSymbolicVariable(
                 MemoryAccess(address + index, CPUSIZE.BYTE))
 
         # Emulate from the verification function
-        raw_input()
+        #mem_val = getConcreteMemoryValue(MemoryAccess(0x0804a01c,8))
+        #mem_val = getConcreteMemoryValue(MemoryAccess(0x08048570,8))
+        #print(hex(int(mem_val)))
+        raw_input("Press any key to start emulate")
         emulate(0x8048490)
         return
 
@@ -192,10 +183,8 @@ def emulate(pc):
         print(instruction)
         # 40078B: cmp eax, 1
         # eax must be equal to 1 at each round.
-        if instruction.getAddress() == 0x08048467:
-            print(hex(getConcreteRegisterValue(REG.EAX)))
         if instruction.getAddress() == 0x080484B5:
-            raw_input()
+            tstart = time.time()
             # Slice expressions
             eax = getSymbolicExpressionFromId(getSymbolicRegisterId(REG.EAX))
             eax = ast.extract(31, 0, eax.getAst())
@@ -212,6 +201,33 @@ def emulate(pc):
                 getSymbolicVariableFromId(k).setConcreteValue(value)
                 print('[+] Symbolic variable %02d = %02x (%c)' %
                       (k, value, chr(value)))
+            tend = time.time()
+            print("It cost %f sec" % (tend -tstart))
+
+        if instruction.getAddress() == 0x080484BC:
+            tstart = time.time()
+            eip = getSymbolicExpressionFromId(getSymbolicRegisterId(REG.EIP))
+            expr = getFullAst(eip.getAst())
+            #print(expr)
+
+            eip = ast.extract(31, 0, eip.getAst())
+
+            # Define constraint
+            cstr = ast.assert_(
+                ast.land(getPathConstraintsAst(),
+                         ast.equal(eip, ast.bv(0x080484be, 32))))
+
+            print('[+] Asking for a model, please wait...')
+            model = getModel(cstr)
+            for k, v in model.items():
+                value = v.getValue()
+                getSymbolicVariableFromId(k).setConcreteValue(value)
+                print('[+] Symbolic variable %02d = %02x (%c)' %
+                      (k, value, chr(value)))
+            tend = time.time()
+            print("It cost %f sec" % (tend -tstart))
+
+
 
         # Next
         pc = getConcreteRegisterValue(REG.EIP)

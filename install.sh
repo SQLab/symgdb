@@ -1,6 +1,5 @@
 #!/bin/bash
 sudo apt-get install -y build-essential libcap-dev
-
 # Install z3
 if [ ! $(python -c "import z3") ]; then
   git clone https://github.com/Z3Prover/z3
@@ -23,4 +22,4 @@ if [ ! $(python -c "import triton") ]; then
   cd ../..
 fi
 sudo pip install --upgrade -r requirements.txt
-echo "source ~/gdb-web/gdb-web.py" >> ~/.gdbinit
+./build.sh
