@@ -6,7 +6,8 @@ from future.utils import with_metaclass
 from triton import *
 
 # Import module from current directory
-sys.path.insert(0, os.getcwd())
+SYMBOLICFILE = os.path.abspath(os.path.expanduser(__file__))
+sys.path.insert(0, os.path.dirname(SYMBOLICFILE))
 
 from singleton import Singleton
 
