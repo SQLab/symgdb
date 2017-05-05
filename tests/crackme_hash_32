@@ -1,0 +1,6 @@
+symbolize_argv
+target 0x080484be
+b main
+r aaaaa
+triton
+quit
