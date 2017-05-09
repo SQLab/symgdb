@@ -91,3 +91,4 @@ ENV/
 # Gdb symbolic
 gdb/
 *.gdb_history
+peda-session-*
