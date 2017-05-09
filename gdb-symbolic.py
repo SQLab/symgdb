@@ -238,7 +238,7 @@ class Symbolic(Singleton, object):
 
             # Process
             processing(instruction)
-            print(instruction)
+            #print(instruction)
 
             #if pc == 0x4005DC:
             if isRegisterSymbolized(Arch().pc_reg):
@@ -288,14 +288,6 @@ class Symbolic(Singleton, object):
             offset = phdr.getOffset()
             size = phdr.getFilesz()
             vaddr = phdr.getVaddr()
-            print('[+] Loading 0x%06x - 0x%06x' % (vaddr, vaddr + size))
-            setConcreteMemoryAreaValue(vaddr, raw[offset:offset + size])
-
-        phdrs = binary.getSectionHeaders()
-        for phdr in phdrs:
-            offset = phdr.getOffset()
-            size = phdr.getSize()
-            vaddr = phdr.getAddr()
             print('[+] Loading 0x%06x - 0x%06x' % (vaddr, vaddr + size))
             setConcreteMemoryAreaValue(vaddr, raw[offset:offset + size])
 
