@@ -16,22 +16,40 @@ POINTER_BYTE = {'amd64': 8, 'i386': 4}
 REG_BITS = {'amd64': 64, 'i386': 32}
 STRUCT_FORMAT = {'amd64': '<Q', 'i386': '<I'}
 TRITON_ARCH = {'amd64': ARCH.X86_64, 'i386': ARCH.X86}
-PC_REG = {'amd64': 'rip', 'i386': 'eip' }
+PC_REG = {'amd64': 'rip', 'i386': 'eip'}
+DEBUG_LIST = ['symbolic', 'gdb']
 
-class Arch(Singleton,object):
+
+class Arch(Singleton, object):
     def __init__(self):
-        if(self._initialized):
+        if (self._initialized):
             return
+        self.arch = self.get_arch()
         self._initialized = True
-        self.pointer_byte = POINTER_BYTE[GdbUtil().arch]
-        self.struct_format = STRUCT_FORMAT[GdbUtil().arch]
-        self.triton_arch = TRITON_ARCH[GdbUtil().arch]
+        self.pointer_byte = POINTER_BYTE[self.arch]
+        self.struct_format = STRUCT_FORMAT[self.arch]
+        self.triton_arch = TRITON_ARCH[self.arch]
         setArchitecture(self.triton_arch)
-        self.pc_reg = getattr(REG,PC_REG[GdbUtil().arch].upper())
-        self.pc = PC_REG[GdbUtil().arch]
-        self.reg_bits = REG_BITS[GdbUtil().arch]
+        self.pc_reg = getattr(REG, PC_REG[self.arch].upper())
+        self.pc = PC_REG[self.arch]
+        self.reg_bits = REG_BITS[self.arch]
+
+    def get_arch(self):
+        filedata = open(GdbUtil().file, "rb").read(0x800)
+        # Linux binaries
+        if filedata[0:4] == b"\x7FELF":
+            # get file type
+            fb = struct.unpack("H", filedata[0x12:0x14])[0]  # e_machine
+            if fb == 0x3e:
+                return "amd64"
+            elif fb == 0x03:
+                return "i386"
+            else:
+                raise Exception("binary type " + hex(fb) + " not supported")
+        return None
 
     def reset(self):
+        self._initialized = False
         self.__init__()
 
 
@@ -39,16 +57,16 @@ def parse_arg(arg):
     return map(lambda x: x.encode("ascii"), arg.split())
 
 
-class GdbUtil(Singleton,object):
+class GdbUtil(Singleton, object):
     def __init__(self):
-        if(self._initialized):
+        if (self._initialized):
             return
         self._initialized = True
-        self.regs = self.get_regs()
         self.file = self.get_file()
-        self.arch = self.get_arch()
+        self.regs = self.get_regs()
 
     def reset(self):
+        self._initialized = False
         self.__init__()
 
     def get_file(self):
@@ -68,19 +86,16 @@ class GdbUtil(Singleton,object):
                     result = m.group(1)
         return result
 
-    def get_arch(self):
-        filedata = open(self.file, "rb").read(0x800)
-        # Linux binaries
-        if filedata[0:4] == b"\x7FELF":
-            # get file type
-            fb = struct.unpack("H", filedata[0x12:0x14])[0]  # e_machine
-            if fb == 0x3e:
-                return "amd64"
-            elif fb == 0x03:
-                return "i386"
-            else:
-                raise Exception("binary type " + hex(fb) + " not supported")
-        return None
+    def get_regs(self):
+        """
+        Get registers from gdb
+        """
+        out = gdb.execute("info registers", to_string=True).encode("ascii")
+        regs = {}
+        for line in out.splitlines():
+            reg, reg_val = line.split()[0:2]
+            regs[reg] = int(reg_val, 0)
+        return regs
 
     def get_argc(self):
         stack_start_address = self.get_stack_start_address()
@@ -101,10 +116,14 @@ class GdbUtil(Singleton,object):
         argv_base = self.get_stack_start_address() + Arch().pointer_byte
         for i in range(self.get_argc()):
             pointer = argv_base + Arch().pointer_byte * i
-            pointer_raw = "".join(list(gdb.selected_inferior().read_memory(pointer,Arch().pointer_byte)))
-            address = struct.unpack(STRUCT_FORMAT[self.arch], pointer_raw)[0]
+            pointer_raw = "".join(
+                list(gdb.selected_inferior().read_memory(pointer,
+                                                         Arch().pointer_byte)))
+            address = struct.unpack(STRUCT_FORMAT[Arch().arch], pointer_raw)[0]
             size = 0
-            while ord(list(gdb.selected_inferior().read_memory(address + size,1))[0]) != 0:
+            while ord(
+                    list(gdb.selected_inferior().read_memory(address + size,
+                                                             1))[0]) != 0:
                 size += 1
             argv_list.append((address, size))
         return argv_list
@@ -126,7 +145,7 @@ class GdbUtil(Singleton,object):
                 return num
         return None
 
-    def getmemory(self, address, size):
+    def get_memory(self, address, size):
         """
         Get memory content from gdb
         Args:
@@ -138,17 +157,6 @@ class GdbUtil(Singleton,object):
         return map(ord,
                    list(gdb.selected_inferior().read_memory(address, size)))
 
-    def get_regs(self):
-        """
-        Get registers from gdb
-        """
-        out = gdb.execute("info registers", to_string=True).encode("ascii")
-        regs = {}
-        for line in out.splitlines():
-            reg, reg_val = line.split()[0:2]
-            regs[reg] = int(reg_val, 0)
-        return regs
-
     def get_reg(self, reg):
         """
         Get register from gdb
@@ -159,7 +167,7 @@ class GdbUtil(Singleton,object):
         """
         return self.regs[reg]
 
-    def geteflag(self, eflag):
+    def get_eflag(self, eflag):
         """
         Get eflag register from gdb
         """
@@ -180,7 +188,7 @@ class GdbUtil(Singleton,object):
             result[key] = bool(eflags & value)
         return result[eflag]
 
-    def getvmmap(self):
+    def get_vmmap(self):
         """
         Get virtual memory mappings from gdb
         """
@@ -203,13 +211,14 @@ class GdbUtil(Singleton,object):
                 maps += [(start, end, perm, mapname)]
         return maps
 
+
 class Symbolic(Singleton, object):
     """
     Saved information about Symbolic execution
     """
 
     def __init__(self):
-        if(self._initialized):
+        if (self._initialized):
             return
         self._initialized = True
         self.debug = False
@@ -237,18 +246,21 @@ class Symbolic(Singleton, object):
             instruction.setAddress(pc)
 
             # Process
-            if(not processing(instruction)):
+            if (not processing(instruction)):
                 print("Current opcode is not supported.")
             print(instruction)
 
             #if pc == 0x4005DC:
             if isRegisterSymbolized(Arch().pc_reg):
-            #if instruction.getAddress() == 0x080484BC:
-                pc_expr = getSymbolicExpressionFromId(getSymbolicRegisterId(Arch().pc_reg))
-                pc_ast = ast.extract(Arch().reg_bits-1, 0, pc_expr.getAst())
+                #if instruction.getAddress() == 0x080484BC:
+                pc_expr = getSymbolicExpressionFromId(
+                    getSymbolicRegisterId(Arch().pc_reg))
+                pc_ast = ast.extract(Arch().reg_bits - 1, 0, pc_expr.getAst())
 
                 # Define constraint
-                cstr = ast.assert_(ast.equal(pc_ast, ast.bv(self.target_address, Arch().reg_bits)))
+                cstr = ast.assert_(
+                    ast.equal(pc_ast,
+                              ast.bv(self.target_address, Arch().reg_bits)))
 
                 model = getModel(cstr)
                 if model:
@@ -277,8 +289,8 @@ class Symbolic(Singleton, object):
 
     def load_segment(self, start, end):
         size = end - start
-        print(hex(start),hex(end))
-        setConcreteMemoryAreaValue(start, GdbUtil().getmemory(start, size))
+        print(hex(start), hex(end))
+        setConcreteMemoryAreaValue(start, GdbUtil().get_memory(start, size))
 
     def load_binary(self):
         binary = Elf(GdbUtil().file)
@@ -292,7 +304,7 @@ class Symbolic(Singleton, object):
             print('[+] Loading 0x%06x - 0x%06x' % (vaddr, vaddr + size))
             setConcreteMemoryAreaValue(vaddr, raw[offset:offset + size])
 
-    def setregs(self):
+    def set_regs(self):
         self.registers = GdbUtil().get_regs()
         print(self.registers)
         for reg, reg_val in self.registers.iteritems():
@@ -321,11 +333,12 @@ class Symbolic(Singleton, object):
             print("symbolize reg: ", reg)
             convertRegisterToSymbolicVariable(
                 Register(getattr(REG, reg.upper())))
+
     def load_stack(self):
-        vmmap = GdbUtil().getvmmap()
-        for start,end,permission,name in vmmap:
+        vmmap = GdbUtil().get_vmmap()
+        for start, end, permission, name in vmmap:
             if name == '[stack]':
-                self.load_segment(start,end)
+                self.load_segment(start, end)
             #print(hex(start),hex(end),permission,name)
             """
             if name.endswith('so'):
@@ -344,7 +357,7 @@ class Symbolic(Singleton, object):
         #enableSymbolicEngine(True)
         self.optimization()
         self.load_binary()
-        self.setregs()
+        self.set_regs()
         self.load_stack()
 
         # make Symbolic
@@ -389,13 +402,15 @@ class SymbolizeArgv(gdb.Command):
         print(Symbolic().symbolized_argv)
         print("Automatically symbolize argv")
 
+
 class Target(gdb.Command):
     def __init__(self):
         super(Target, self).__init__("target", gdb.COMMAND_DATA)
 
     def invoke(self, arg, from_tty):
         args = parse_arg(arg)
-        Symbolic().target_address = int(args[0],0)
+        Symbolic().target_address = int(args[0], 0)
+
 
 class Triton(gdb.Command):
     def __init__(self):
@@ -405,23 +420,41 @@ class Triton(gdb.Command):
         Symbolic().init()
 
 
-class Test(gdb.Command):
+class Debug(gdb.Command):
     def __init__(self):
-        super(Test, self).__init__("test", gdb.COMMAND_DATA)
+        super(Debug, self).__init__("debug", gdb.COMMAND_DATA)
 
     def invoke(self, arg, from_tty):
-        x = Symbolic()
-        print(id(x))
-        x = Symbolic()
-        print(id(x))
+        args = parse_arg(arg)
+        if args[0] == 'symbolic':
+            Symbolic().debug = True
+        elif args[0] == 'gdb':
+            GdbUtil().debug = True
+        else:
+            Symbolic().debug = True
+            GdbUtil().debug = True
 
-        print(x.symbolized_argv)
-        Symbolic().symbolized_argv=True
-        print(Symbolic().symbolized_argv)
-        print(Symbolic().symbolized_argv)
+    def complete(self, text, word):
+        completion = []
+        if text != "":
+            for s in DEBUG_LIST:
+                if text in s:
+                    completion.append(s)
+        else:
+            completion = DEBUG_LIST
+        return completion
+
+
+class Reset(gdb.Command):
+    def __init__(self):
+        super(Reset, self).__init__("reset", gdb.COMMAND_DATA)
+
+    def invoke(self, arg, from_tty):
+        Symbolic().reset()
+
 
 def breakpoint_handler(event):
-    print("breakpoint reached")
+    GdbUtil().reset()
 
 
 #gdb.events.stop.connect(breakpoint_handler)
@@ -431,7 +464,8 @@ SymbolizeMemory()
 SymbolizeRegister()
 SymbolizeArgv()
 Target()
-Test()
+Debug()
+Reset()
 
 
 def needConcreteMemoryValue(mem):
