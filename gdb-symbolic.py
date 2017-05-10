@@ -237,8 +237,9 @@ class Symbolic(Singleton, object):
             instruction.setAddress(pc)
 
             # Process
-            processing(instruction)
-            #print(instruction)
+            if(not processing(instruction)):
+                print("Current opcode is not supported.")
+            print(instruction)
 
             #if pc == 0x4005DC:
             if isRegisterSymbolized(Arch().pc_reg):
@@ -249,9 +250,9 @@ class Symbolic(Singleton, object):
                 # Define constraint
                 cstr = ast.assert_(ast.equal(pc_ast, ast.bv(self.target_address, Arch().reg_bits)))
 
-                print('[+] Asking for a model, please wait...')
                 model = getModel(cstr)
                 if model:
+                    print('[+] Got answer!!!')
                     for k, v in model.items():
                         value = v.getValue()
                         getSymbolicVariableFromId(k).setConcreteValue(value)
@@ -325,6 +326,15 @@ class Symbolic(Singleton, object):
         for start,end,permission,name in vmmap:
             if name == '[stack]':
                 self.load_segment(start,end)
+            #print(hex(start),hex(end),permission,name)
+            """
+            if name.endswith('so'):
+                if 'r' in permission:
+                    self.load_segment(start,end)
+            elif 'w' in permission and name != "mapped":
+                print(name)
+                self.load_segment(start,end)
+            """
 
     def init(self):
         #resetEngines()
