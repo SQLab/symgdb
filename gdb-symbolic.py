@@ -376,42 +376,25 @@ class Symbolic(Singleton, object):
 # Commands
 
 
-class SymbolizeMemory(gdb.Command):
-    def __init__(self):
-        super(SymbolizeMemory, self).__init__("symbolize_memory",
-                                              gdb.COMMAND_DATA)
-
-    def invoke(self, arg, from_tty):
-        args = parse_arg(arg)
-        if len(args) != 2:
-            return
-        Symbolic().symbolized_memory.append(map(lambda x: int(x, 0), args))
-
-
-class SymbolizeRegister(gdb.Command):
-    def __init__(self):
-        super(SymbolizeRegister, self).__init__("symbolize_register",
-                                                gdb.COMMAND_DATA)
-
-    def invoke(self, arg, from_tty):
-        Symbolic().symbolized_registers.append(parse_arg(arg))
-
-
 class Symbolize(gdb.Command):
     def __init__(self):
         super(Symbolize, self).__init__("symbolize", gdb.COMMAND_DATA)
 
     def invoke(self, arg, from_tty):
-        print("Automatically symbolize argv")
         args = parse_arg(arg)
         if args[0] == 'argv':
+            cprint("Automatically symbolize argv", 'green')
             Symbolic().symbolized_argv = True
-        else:
-            Symbolic().symbolized_memory.append(
-                map(lambda x: int(x, 0), parse_arg(arg)))
+        elif args[0] == 'memory' and len(args) == 3:
+            address, size = map(lambda x: int(x, 0), args[1:])
+            cprint("Set symbolized memory %s-%s" %
+                   (hex(address), hex(address + size)), 'green')
+            Symbolic().symbolized_memory.append([address, size])
+        elif args[0] == 'register':
+            Symbolic().symbolized_registers.append(args[1])
 
     def complete(self, text, word):
-        symbolize_list = ['argv']
+        symbolize_list = ['argv', 'memory', 'register']
         completion = []
         if text != "":
             for s in symbolize_list:
@@ -428,7 +411,10 @@ class Target(gdb.Command):
 
     def invoke(self, arg, from_tty):
         args = parse_arg(arg)
-        Symbolic().target_address = int(args[0], 0)
+        if len(args) == 1:
+            target_address = int(args[0], 0)
+            cprint("Set target address = %s" % hex(target_address), 'green')
+            Symbolic().target_address = target_address
 
 
 class Triton(gdb.Command):
@@ -472,6 +458,17 @@ class Reset(gdb.Command):
     def invoke(self, arg, from_tty):
         Symbolic().reset()
 
+    def complete(self, text, word):
+        reset_list = ['symbolic']
+        completion = []
+        if text != "":
+            for s in reset_list:
+                if text in s:
+                    completion.append(s)
+        else:
+            completion = reset_list
+        return completion
+
 
 def breakpoint_handler(event):
     GdbUtil().reset()
@@ -481,8 +478,6 @@ def breakpoint_handler(event):
 gdb.events.stop.connect(breakpoint_handler)
 
 Triton()
-SymbolizeMemory()
-SymbolizeRegister()
 Symbolize()
 Target()
 Debug()
