@@ -1,6 +1,7 @@
 import struct
 import os
 import sys
+from termcolor import colored, cprint
 from triton import *
 
 # Import module from current directory
@@ -17,23 +18,20 @@ class Arch(Singleton, object):
     def __init__(self):
         if (self._initialized):
             return
-        WORD = {'amd64': 4, 'i386': 2}
-        WORD_BITS = 16
-        POINTER_BYTE = {'amd64': 8, 'i386': 4}
-        REG_BITS = {'amd64': 64, 'i386': 32}
-        STRUCT_FORMAT = {'amd64': '<Q', 'i386': '<I'}
-        TRITON_ARCH = {'amd64': ARCH.X86_64, 'i386': ARCH.X86}
-        PC_REG = {'amd64': 'rip', 'i386': 'eip'}
-        DEBUG_LIST = ['symbolic', 'gdb']
+        pointer_byte = {'amd64': 8, 'i386': 4}
+        reg_bits = {'amd64': 64, 'i386': 32}
+        struct_format = {'amd64': '<Q', 'i386': '<I'}
+        triton_arch = {'amd64': ARCH.X86_64, 'i386': ARCH.X86}
+        pc_reg = {'amd64': 'rip', 'i386': 'eip'}
         self.arch = self.get_arch()
         self._initialized = True
-        self.pointer_byte = POINTER_BYTE[self.arch]
-        self.struct_format = STRUCT_FORMAT[self.arch]
-        self.triton_arch = TRITON_ARCH[self.arch]
+        self.pointer_byte = pointer_byte[self.arch]
+        self.reg_bits = reg_bits[self.arch]
+        self.struct_format = struct_format[self.arch]
+        self.triton_arch = triton_arch[self.arch]
         setArchitecture(self.triton_arch)
-        self.pc_reg = getattr(REG, PC_REG[self.arch].upper())
-        self.pc = PC_REG[self.arch]
-        self.reg_bits = REG_BITS[self.arch]
+        self.triton_pc_reg = getattr(REG, pc_reg[self.arch].upper())
+        self.pc_reg = pc_reg[self.arch]
 
     def get_arch(self):
         filedata = open(GdbUtil().file, "rb").read(0x800)
@@ -224,6 +222,10 @@ class Symbolic(Singleton, object):
             return False
         return True
 
+    def log(self, s):
+        if self.debug:
+            print(s)
+
     def emulate(self, pc):
         while pc:
             # Fetch opcodes
@@ -237,13 +239,12 @@ class Symbolic(Singleton, object):
             # Process
             if (not processing(instruction)):
                 print("Current opcode is not supported.")
-            print(instruction)
+            self.log(instruction)
 
-            #if pc == 0x4005DC:
-            if isRegisterSymbolized(Arch().pc_reg):
+            if isRegisterSymbolized(Arch().triton_pc_reg):
                 #if instruction.getAddress() == 0x080484BC:
                 pc_expr = getSymbolicExpressionFromId(
-                    getSymbolicRegisterId(Arch().pc_reg))
+                    getSymbolicRegisterId(Arch().triton_pc_reg))
                 pc_ast = ast.extract(Arch().reg_bits - 1, 0, pc_expr.getAst())
 
                 # Define constraint
@@ -253,15 +254,30 @@ class Symbolic(Singleton, object):
 
                 model = getModel(cstr)
                 if model:
-                    print('[+] Got answer!!!')
-                    for k, v in model.items():
-                        value = v.getValue()
-                        getSymbolicVariableFromId(k).setConcreteValue(value)
-                        print('[+] Symbolic variable %02d = %02x (%c)' %
-                              (k, value, chr(value)))
-                    raw_input("Answer")
+                    cprint('Got answer!!!', 'green')
+                    for sym_id, sym_model in model.items():
+                        value = sym_model.getValue()
+                        getSymbolicVariableFromId(sym_id).setConcreteValue(
+                            value)
+                        cprint('Symbolic variable %02d = %02x (%c)' %
+                               (sym_id, value, chr(value)), 'green')
+                    s = raw_input("Inject back to gdb? (y/n)")
+                    if s == 'y':
+                        self.inject_to_gdb()
+                    return True
             # Next
             pc = buildSymbolicRegister(REG.EIP).evaluate()
+
+    def inject_to_gdb(self):
+        for address, size in self.symbolized_memory:
+            self.log("Memory updated: %s-%s" %
+                     (hex(address), hex(address + size)))
+            for index in range(size):
+                memory = chr(
+                    getSymbolicMemoryValue(
+                        MemoryAccess(address + index, CPUSIZE.BYTE)))
+                gdb.selected_inferior().write_memory(address + index, memory,
+                                                     CPUSIZE.BYTE)
 
     def set_breakpoint(self, address):
         self.breakpoint = address
@@ -278,7 +294,6 @@ class Symbolic(Singleton, object):
 
     def load_segment(self, start, end):
         size = end - start
-        print(hex(start), hex(end))
         setConcreteMemoryAreaValue(start, GdbUtil().get_memory(start, size))
 
     def load_binary(self):
@@ -290,36 +305,33 @@ class Symbolic(Singleton, object):
             offset = phdr.getOffset()
             size = phdr.getFilesz()
             vaddr = phdr.getVaddr()
-            print('[+] Loading 0x%06x - 0x%06x' % (vaddr, vaddr + size))
+            self.log('[+] Loading 0x%06x - 0x%06x' % (vaddr, vaddr + size))
             setConcreteMemoryAreaValue(vaddr, raw[offset:offset + size])
 
     def set_regs(self):
         self.registers = GdbUtil().get_regs()
-        print(self.registers)
         for reg, reg_val in self.registers.iteritems():
-            print("Set %s: %s" % (str(reg), str(hex(reg_val))))
+            self.log("Set %s: %s" % (str(reg), str(hex(reg_val))))
             setConcreteRegisterValue(
                 Register(getattr(REG, reg.upper()), reg_val))
 
     def symbolize_argv(self):
         argv_list = GdbUtil().get_argv_list()
         address, size = argv_list[1]
-        print(hex(address))
-        print("symbolize memory: ", hex(address), size)
-        for index in range(size):
-            convertMemoryToSymbolicVariable(
-                MemoryAccess(address + index, CPUSIZE.BYTE))
+        if [address, size] not in self.symbolized_memory:
+            self.symbolized_memory.append([address, size])
 
     def symbolize_memory(self):
         for address, size in self.symbolized_memory:
-            print("symbolize memory: ", hex(address), size)
+            self.log("Symbolize memory: %s-%s" %
+                     (hex(address), hex(address + size)))
             for index in range(size):
                 convertMemoryToSymbolicVariable(
                     MemoryAccess(address + index, CPUSIZE.BYTE))
 
     def symbolize_registers(self):
         for reg in self.symbolized_registers:
-            print("symbolize reg: ", reg)
+            self.log("Symbolize register: %s" % reg)
             convertRegisterToSymbolicVariable(
                 Register(getattr(REG, reg.upper())))
 
@@ -338,7 +350,7 @@ class Symbolic(Singleton, object):
                 self.load_segment(start,end)
             """
 
-    def init(self):
+    def run(self):
         #resetEngines()
         if not self.check():
             return
@@ -356,8 +368,9 @@ class Symbolic(Singleton, object):
         self.symbolize_memory()
         self.symbolize_registers()
 
-        raw_input("Press any key to start")
-        self.emulate(self.registers[Arch().pc])
+        #raw_input("Press any key to start")
+        if not self.emulate(self.registers[Arch().pc_reg]):
+            print(cprint("No answer is found!!!", 'red'))
 
 
 # Commands
@@ -369,8 +382,10 @@ class SymbolizeMemory(gdb.Command):
                                               gdb.COMMAND_DATA)
 
     def invoke(self, arg, from_tty):
-        Symbolic().symbolized_memory.append(
-            map(lambda x: int(x, 0), parse_arg(arg)))
+        args = parse_arg(arg)
+        if len(args) != 2:
+            return
+        Symbolic().symbolized_memory.append(map(lambda x: int(x, 0), args))
 
 
 class SymbolizeRegister(gdb.Command):
@@ -382,14 +397,29 @@ class SymbolizeRegister(gdb.Command):
         Symbolic().symbolized_registers.append(parse_arg(arg))
 
 
-class SymbolizeArgv(gdb.Command):
+class Symbolize(gdb.Command):
     def __init__(self):
-        super(SymbolizeArgv, self).__init__("symbolize_argv", gdb.COMMAND_DATA)
+        super(Symbolize, self).__init__("symbolize", gdb.COMMAND_DATA)
 
     def invoke(self, arg, from_tty):
-        Symbolic().symbolized_argv = True
-        print(Symbolic().symbolized_argv)
         print("Automatically symbolize argv")
+        args = parse_arg(arg)
+        if args[0] == 'argv':
+            Symbolic().symbolized_argv = True
+        else:
+            Symbolic().symbolized_memory.append(
+                map(lambda x: int(x, 0), parse_arg(arg)))
+
+    def complete(self, text, word):
+        symbolize_list = ['argv']
+        completion = []
+        if text != "":
+            for s in symbolize_list:
+                if text in s:
+                    completion.append(s)
+        else:
+            completion = symbolize_list
+        return completion
 
 
 class Target(gdb.Command):
@@ -406,7 +436,7 @@ class Triton(gdb.Command):
         super(Triton, self).__init__("triton", gdb.COMMAND_DATA)
 
     def invoke(self, arg, from_tty):
-        Symbolic().init()
+        Symbolic().run()
 
 
 class Debug(gdb.Command):
@@ -424,13 +454,14 @@ class Debug(gdb.Command):
             GdbUtil().debug = True
 
     def complete(self, text, word):
+        debug_list = ['symbolic', 'gdb']
         completion = []
         if text != "":
-            for s in DEBUG_LIST:
+            for s in debug_list:
                 if text in s:
                     completion.append(s)
         else:
-            completion = DEBUG_LIST
+            completion = debug_list
         return completion
 
 
@@ -452,7 +483,7 @@ gdb.events.stop.connect(breakpoint_handler)
 Triton()
 SymbolizeMemory()
 SymbolizeRegister()
-SymbolizeArgv()
+Symbolize()
 Target()
 Debug()
 Reset()

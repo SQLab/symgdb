@@ -1,6 +1,6 @@
-symbolize_argv
+symbolize argv
 target 0x080484be
-b main
-r aaaaa
+break main
+run aaaaa
 triton
-quit
+continue
