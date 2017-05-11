@@ -8,22 +8,23 @@ SYMBOLICFILE = os.path.abspath(os.path.expanduser(__file__))
 sys.path.insert(0, os.path.dirname(SYMBOLICFILE))
 from singleton import Singleton
 
-EFLAGS = ['cf', 'pf', 'af', 'zf', 'sf', 'tf', 'if', 'df', 'of']
 
-WORD = {'amd64': 4, 'i386': 2}
-WORD_BITS = 16
-POINTER_BYTE = {'amd64': 8, 'i386': 4}
-REG_BITS = {'amd64': 64, 'i386': 32}
-STRUCT_FORMAT = {'amd64': '<Q', 'i386': '<I'}
-TRITON_ARCH = {'amd64': ARCH.X86_64, 'i386': ARCH.X86}
-PC_REG = {'amd64': 'rip', 'i386': 'eip'}
-DEBUG_LIST = ['symbolic', 'gdb']
+def parse_arg(arg):
+    return map(lambda x: x.encode("ascii"), arg.split())
 
 
 class Arch(Singleton, object):
     def __init__(self):
         if (self._initialized):
             return
+        WORD = {'amd64': 4, 'i386': 2}
+        WORD_BITS = 16
+        POINTER_BYTE = {'amd64': 8, 'i386': 4}
+        REG_BITS = {'amd64': 64, 'i386': 32}
+        STRUCT_FORMAT = {'amd64': '<Q', 'i386': '<I'}
+        TRITON_ARCH = {'amd64': ARCH.X86_64, 'i386': ARCH.X86}
+        PC_REG = {'amd64': 'rip', 'i386': 'eip'}
+        DEBUG_LIST = ['symbolic', 'gdb']
         self.arch = self.get_arch()
         self._initialized = True
         self.pointer_byte = POINTER_BYTE[self.arch]
@@ -48,14 +49,6 @@ class Arch(Singleton, object):
                 raise Exception("binary type " + hex(fb) + " not supported")
         return None
 
-    def reset(self):
-        self._initialized = False
-        self.__init__()
-
-
-def parse_arg(arg):
-    return map(lambda x: x.encode("ascii"), arg.split())
-
 
 class GdbUtil(Singleton, object):
     def __init__(self):
@@ -64,10 +57,6 @@ class GdbUtil(Singleton, object):
         self._initialized = True
         self.file = self.get_file()
         self.regs = self.get_regs()
-
-    def reset(self):
-        self._initialized = False
-        self.__init__()
 
     def get_file(self):
         """
@@ -119,7 +108,7 @@ class GdbUtil(Singleton, object):
             pointer_raw = "".join(
                 list(gdb.selected_inferior().read_memory(pointer,
                                                          Arch().pointer_byte)))
-            address = struct.unpack(STRUCT_FORMAT[Arch().arch], pointer_raw)[0]
+            address = struct.unpack(Arch().struct_format, pointer_raw)[0]
             size = 0
             while ord(
                     list(gdb.selected_inferior().read_memory(address + size,
@@ -455,9 +444,10 @@ class Reset(gdb.Command):
 
 def breakpoint_handler(event):
     GdbUtil().reset()
+    Arch().reset()
 
 
-#gdb.events.stop.connect(breakpoint_handler)
+gdb.events.stop.connect(breakpoint_handler)
 
 Triton()
 SymbolizeMemory()
