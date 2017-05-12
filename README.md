@@ -4,9 +4,9 @@ gdb-symbolic - symbolic execution extention for gdb
 
 # Installation
 
-**Warning!!! Install script will overwrite your gdb**
+**Warning!!! Installation script will overwrite your gdb**
 
-**Due to trition is not supported python3 yet**
+**Due to python3 not supported for triton yet**
 
 **Need to recompile gdb for python2**
 
