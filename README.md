@@ -35,6 +35,15 @@ Set target address
 
 Run symbolic execution
 
+## debug
+
+Show debug message
+
+### options
+
+- symbolic
+- gdb
+
 # Tests
 
 ```bash
