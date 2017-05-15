@@ -243,7 +243,6 @@ class Symbolic(Singleton, object):
             self.log(instruction)
 
             if isRegisterSymbolized(Arch().triton_pc_reg):
-                #if instruction.getAddress() == 0x080484BC:
                 pc_expr = getSymbolicExpressionFromId(
                     getSymbolicRegisterId(Arch().triton_pc_reg))
                 pc_ast = ast.extract(Arch().reg_bits - 1, 0, pc_expr.getAst())
@@ -266,7 +265,7 @@ class Symbolic(Singleton, object):
                         self.inject_to_gdb()
                     return True
             # Next
-            pc = buildSymbolicRegister(REG.EIP).evaluate()
+            pc = buildSymbolicRegister(Arch().triton_pc_reg).evaluate()
 
     def inject_to_gdb(self):
         for address, size in self.symbolized_memory:
