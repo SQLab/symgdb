@@ -1,0 +1,16 @@
+symbolize argv
+break main
+break *0x40056d
+target 0x400576
+run aaaaa
+triton
+continue
+triton
+continue
+triton
+continue
+triton
+continue
+triton
+continue
+continue
