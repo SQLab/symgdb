@@ -44,6 +44,22 @@ Show debug message
 - symbolic
 - gdb
 
+# Examples
+
+You could combine with other gdb plugin, such as [peda](https://github.com/longld/peda).
+
+## crackme hash 32
+
+![crackme hash 32](./demo_videos/crackme-hash-32.gif)
+
+## symbolize argv
+
+![symbolize argv](./demo_videos/symbolize-argv.gif)
+
+## crackme hash 64
+
+![crackme hash 32](./demo_videos/crackme-hash-64.gif)
+
 # Tests
 
 ```bash
