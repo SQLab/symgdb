@@ -25,7 +25,6 @@ Make symbolic
 
 - argv
 - memory [address] [size]
-- register [register_name]
 
 ## target
 
@@ -34,6 +33,10 @@ Set target address
 ## triton
 
 Run symbolic execution
+
+## answer 
+
+Print symbolic variables 
 
 ## debug
 

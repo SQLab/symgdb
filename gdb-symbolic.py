@@ -213,7 +213,6 @@ class Symbolic(Singleton, object):
         self.symbolized_argc = False
         self.symbolized_argv = False
         self.symbolized_memory = []
-        self.symbolized_registers = []
         self.registers = {}
         self.breakpoint = None
         self.target_address = None
@@ -278,6 +277,16 @@ class Symbolic(Singleton, object):
                 gdb.selected_inferior().write_memory(address + index, memory,
                                                      CPUSIZE.BYTE)
 
+    def print_symbolic_variables(self):
+        for address, size in self.symbolized_memory:
+            answer = ""
+            for index in range(size):
+                answer += chr(
+                    getSymbolicMemoryValue(
+                        MemoryAccess(address + index, CPUSIZE.BYTE)))
+            cprint("%s-%s: %s" %
+                   (hex(address), hex(address + size), repr(answer)), 'green')
+
     def set_breakpoint(self, address):
         self.breakpoint = address
 
@@ -328,12 +337,6 @@ class Symbolic(Singleton, object):
                 convertMemoryToSymbolicVariable(
                     MemoryAccess(address + index, CPUSIZE.BYTE))
 
-    def symbolize_registers(self):
-        for reg in self.symbolized_registers:
-            self.log("Symbolize register: %s" % reg)
-            convertRegisterToSymbolicVariable(
-                Register(getattr(REG, reg.upper())))
-
     def load_stack(self):
         vmmap = GdbUtil().get_vmmap()
         for start, end, permission, name in vmmap:
@@ -365,9 +368,9 @@ class Symbolic(Singleton, object):
         if self.symbolized_argv:
             self.symbolize_argv()
         self.symbolize_memory()
-        self.symbolize_registers()
 
-        #raw_input("Press any key to start")
+        # symbolic execution
+
         if not self.emulate(self.registers[Arch().pc_reg]):
             print(cprint("No answer is found!!!", 'red'))
 
@@ -424,6 +427,14 @@ class Triton(gdb.Command):
         Symbolic().run()
 
 
+class Answer(gdb.Command):
+    def __init__(self):
+        super(Answer, self).__init__("answer", gdb.COMMAND_DATA)
+
+    def invoke(self, arg, from_tty):
+        Symbolic().print_symbolic_variables()
+
+
 class Debug(gdb.Command):
     def __init__(self):
         super(Debug, self).__init__("debug", gdb.COMMAND_DATA)
@@ -476,8 +487,9 @@ def breakpoint_handler(event):
 
 gdb.events.stop.connect(breakpoint_handler)
 
-Triton()
 Symbolize()
 Target()
+Triton()
+Answer()
 Debug()
 Reset()
