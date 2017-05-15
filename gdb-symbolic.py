@@ -1,6 +1,7 @@
-import struct
 import os
 import sys
+import click
+import struct
 from termcolor import colored, cprint
 from triton import *
 
@@ -182,7 +183,7 @@ class GdbUtil(Singleton, object):
         pid = int(gdb.selected_inferior().pid)
         maps = []
         mpath = "/proc/%s/maps" % pid
-        #00400000-0040b000 r-xp 00000000 08:02 538840  /path/to/file
+        # 00400000-0040b000 r-xp 00000000 08:02 538840  /path/to/file
         pattern = re.compile(
             "([0-9a-f]*)-([0-9a-f]*) ([rwxps-]*)(?: [^ ]*){3} *(.*)")
 
@@ -261,8 +262,7 @@ class Symbolic(Singleton, object):
                             value)
                         cprint('Symbolic variable %02d = %02x (%c)' %
                                (sym_id, value, chr(value)), 'green')
-                    s = raw_input("Inject back to gdb? (y/n)")
-                    if s == 'y':
+                    if click.confirm('Inject back to gdb?', default=True):
                         self.inject_to_gdb()
                     return True
             # Next
@@ -482,59 +482,3 @@ Symbolize()
 Target()
 Debug()
 Reset()
-
-
-def needConcreteMemoryValue(mem):
-    """
-    if mem.hasConcreteValue():
-        return
-    """
-    mem_addr = mem.getAddress()
-    mem_size = mem.getSize()
-    print("Need" + str(hex(mem_addr)) + ":" + str(mem_size))
-    """
-    try:
-        print("Try to get memory value from triton")
-        mem_val = getConcreteMemoryValue(MemoryAccess(mem_addr,mem_size))
-    except Exception:
-        print("Failed")
-        pass
-    """
-
-    memory_list = map(
-        ord, list(gdb.selected_inferior().read_memory(mem_addr, mem_size)))
-    mem_val = int(to_hexstr(memory_view), 16)
-    print("Memory from %s length %d: %s" % memory_list)
-    #setConcreteMemoryValue(MemoryAccess(mem_addr,mem_size, mem_val))
-
-
-def needConcreteRegisterValue(reg):
-    """
-    if reg.getConcreteValue():
-        return
-    """
-    reg = reg.getName()
-    if reg == "eip":
-        return
-    print("Need %s value" % reg)
-    """
-    try:
-        print("Try to get register value from triton")
-        reg_val = getConcreteRegisterValue(Register(getattr(REG, reg.upper())))
-        print("Succeed %s value= %s" % (reg, str(hex(reg_val))))
-    except Exception:
-        print("Failed")
-        pass
-    """
-
-    if reg in EFLAGS:
-        reg = 'eflags'
-        reg_val = GdbUtil().get_reg('eflags')
-        reg_val = getConcreteRegisterValue(Register(getattr(REG, reg.upper())))
-        print("Eflags:" + str(reg_val))
-        return
-    else:
-        reg_val = GdbUtil().get_reg(reg)
-
-    print("Got %s value: %s" % (reg, str(hex(reg_val))))
-    #setConcreteRegisterValue(Register(getattr(REG, reg.upper()),reg_val))
