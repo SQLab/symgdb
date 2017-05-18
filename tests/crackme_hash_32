@@ -1,7 +1,6 @@
+break main
 symbolize argv
 target 0x080484be
-break main
 run aaaaa
 triton
-answer
 continue

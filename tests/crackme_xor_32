@@ -1,6 +1,6 @@
-symbolize argv
 break main
 break *0x08048447
+symbolize argv
 target 0x08048450
 run aaaaa
 triton
@@ -13,6 +13,4 @@ triton
 continue
 triton
 continue
-triton
-answer
 continue
