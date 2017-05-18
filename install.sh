@@ -1,7 +1,10 @@
 #!/bin/bash
 sudo apt-get install -y build-essential libcap-dev cmake
 # Install z3
-if [ ! $(python -c "import z3") ]; then
+python2 -c "import z3"
+NOT_INSTALLED=$?
+if [ $NOT_INSTALLED == 1 ]
+then
   git clone https://github.com/Z3Prover/z3
   cd z3
   python scripts/mk_make.py --python
@@ -12,7 +15,10 @@ if [ ! $(python -c "import z3") ]; then
 fi
 
 # Install triton
-if [ ! $(python -c "import triton") ]; then
+python2 -c "import triton"
+NOT_INSTALLED=$?
+if [ $NOT_INSTALLED == 1 ]
+then
   git clone https://github.com/JonathanSalwan/Triton.git
   cd Triton
   mkdir build
