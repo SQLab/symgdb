@@ -21,5 +21,5 @@ if [ ! $(python -c "import triton") ]; then
   sudo make -j $(grep processor < /proc/cpuinfo | wc -l) install
   cd ../..
 fi
-sudo pip install --upgrade -r requirements.txt
+sudo pip2 install --upgrade -r requirements.txt
 ./build.sh
