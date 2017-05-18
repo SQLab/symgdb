@@ -1,5 +1,5 @@
 #!/bin/bash
-sudo apt-get install -y build-essential libcap-dev
+sudo apt-get install -y build-essential libcap-dev cmake
 # Install z3
 if [ ! $(python -c "import z3") ]; then
   git clone https://github.com/Z3Prover/z3
