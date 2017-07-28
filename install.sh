@@ -1,5 +1,6 @@
 #!/bin/bash
-sudo apt-get install -y build-essential libcap-dev cmake
+sudo apt-get install -y build-essential libcap-dev cmake libboost-all-dev libcapstone-dev
+
 # Install z3
 python2 -c "import z3"
 NOT_INSTALLED=$?
@@ -27,5 +28,12 @@ then
   sudo make -j $(grep processor < /proc/cpuinfo | wc -l) install
   cd ../..
 fi
+
+# Install python modules
+if [ !$(which pip2) ]; then
+  sudo apt install python-pip
+fi
 sudo pip2 install --upgrade -r requirements.txt
+
+# Build gdb
 ./build.sh
