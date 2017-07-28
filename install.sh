@@ -1,5 +1,5 @@
 #!/bin/bash
-sudo apt-get install -y build-essential libcap-dev cmake libboost-all-dev libcapstone-dev
+sudo apt-get install -y build-essential libcap-dev cmake libboost-all-dev libcapstone-dev gcc-multilib
 
 # Install z3
 python2 -c "import z3"

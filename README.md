@@ -12,7 +12,7 @@ gdb-symbolic - symbolic execution extention for gdb
 
 ```bash
 ./install.sh
-echo "source ~/gdb-symbolic/gdb-symbolic.py" >> ~/.gdbinit
+echo "source ~/symgdb/symgdb.py" >> ~/.gdbinit
 ```
 
 # Commands

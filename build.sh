@@ -1,5 +1,5 @@
 #!/bin/bash
-GDB_VERSION='7.12'
+GDB_VERSION='8.0'
 wget https://ftp.gnu.org/gnu/gdb/gdb-$GDB_VERSION.tar.gz
 tar zxvf gdb-$GDB_VERSION.tar.gz
 mv gdb-$GDB_VERSION/ gdb/

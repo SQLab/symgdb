@@ -89,6 +89,9 @@ ENV/
 .ropeproject
 
 # Gdb symbolic
+z3/
+Triton/
 gdb/
+*.tar.gz
 *.gdb_history
 peda-session-*
