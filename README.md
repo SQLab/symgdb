@@ -17,35 +17,14 @@ echo "source ~/symgdb/symgdb.py" >> ~/.gdbinit
 
 # Commands
 
-## symbolize
-
-Make symbolic
-
-### options
-
-- argv
-- memory [address] [size]
-
-## target
-
-Set target address
-
-## triton
-
-Run symbolic execution
-
-## answer 
-
-Print symbolic variables 
-
-## debug
-
-Show debug message
-
-### options
-
-- symbolic
-- gdb
+| Command   | Options                | Functionality            |
+|-----------|------------------------|--------------------------|
+| symbolize | argv                   | Make symbolic            |
+|           | memory [address][size] |                          |
+| target    | address                | Set target address       |
+| triton    |                        | Run symbolic execution   |
+| answer    |                        | Print symbolic variables |
+| debug     | symbolic gdb           | Show debug message       |
 
 # Examples
 
