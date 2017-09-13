@@ -47,3 +47,7 @@ You could combine with other gdb plugin, such as [peda](https://github.com/longl
 ```bash
 ./tests/run.sh
 ```
+
+# Talk
+
+- [Triton and Symbolic execution on GDB @ HITCON](https://hitcon.org/2017/CMT/slide-files/d2_s1_r0.pdf)
