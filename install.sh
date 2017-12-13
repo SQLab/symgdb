@@ -36,4 +36,5 @@ fi
 sudo pip2 install --upgrade -r requirements.txt
 
 # Build gdb
+sudo apt install texinfo -y
 ./build.sh

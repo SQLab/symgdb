@@ -1,2 +1,4 @@
+setuptools
 click
 termcolor
+lief
