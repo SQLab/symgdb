@@ -50,4 +50,4 @@ You could combine with other gdb plugin, such as [peda](https://github.com/longl
 
 # Talk
 
-- [Triton and Symbolic execution on GDB @ HITCON](https://hitcon.org/2017/CMT/slide-files/d2_s1_r0.pdf)
+- [Triton and Symbolic execution on GDB @ DEF CON China](https://www.slideshare.net/bananaappletw/triton-and-symbolic-execution-on-gdbdef-con-china-97054877)
